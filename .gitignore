@@ -1,0 +1,106 @@
+#ignore thumbnails created by windows
+Thumbs.db
+#Ignore files build by Visual Studio
+*.obj
+*.exe
+*.pdb
+*.aps
+*.vcproj.*.user
+*.vspscc
+*_i.c
+*.i
+*.icf
+*_p.c
+*.ncb
+*.suo
+*.tlb
+*.tlh
+*.bak
+*.cache
+*.ilk
+*.log
+[Bb]in
+[Dd]ebug*/
+*.sbr
+obj/
+[Rr]elease*/
+_ReSharper*/
+[Tt]est[Rr]esult*
+
+# Ignore files build by ndk and eclipse
+libs/
+bin/
+obj/
+assets/
+.classpath
+.project
+.cproject
+
+# Ignore files build by airplay
+build_*_xcode/
+
+# Ignore files build by xcode3
+*.mode*v*
+*.pbxuser
+build/
+.DS_Store
+
+# Ignore files by xcode4
+*.xcscheme
+*.xcworkspacedata
+*.xcuserstate
+xcschememanagement.*
+
+# Mac
+.DS_Store
+
+#Java
+*.class
+
+# XCode
+*.moved-aside
+build/*
+*.xcworkspace
+*.mode1v3
+*.mode2v3
+*.pbxuser
+!default.xcworkspace
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+*.perspectivev3
+profile
+xcuserdata
+.idea/*
+
+#Cocoa pods
+*.old
+Pods/*
+
+#cocos2d-x
+libs/
+bin/
+obj/
+assets/
+gen/
+out/
+.classpath
+.project
+.cproject
+
+# backup files
+*.bak
+*.bak[0-9][0-9]
+*.orig
+*.orig[0-9][0-9]
+
+# source packages - anywhere
+*.tar.bz2
+*.tar.gz
+*.tar
+*.tgz
+*.gtgz
+
+*.sdf
+*.opensdf
+PEPlayer.zip
