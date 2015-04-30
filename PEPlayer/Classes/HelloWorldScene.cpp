@@ -1,7 +1,7 @@
 #include "HelloWorldScene.h"
-#include "ui\UIVideoPlayer.h"
-#include "external\json\rapidjson.h"
-#include "external\json\document.h"
+#include "ui/UIVideoPlayer.h"
+#include "external/json/rapidjson.h"
+#include "external/json/document.h"
 
 #include <vector>
 #include <string>
