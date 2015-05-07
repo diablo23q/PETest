@@ -1,10 +1,6 @@
 #include "HelloWorldScene.h"
-#include "ui/UIVideoPlayer.h"
 #include "external/json/rapidjson.h"
 #include "external/json/document.h"
-
-#include <vector>
-#include <string>
 
 USING_NS_CC;
 using namespace network;
@@ -21,77 +17,118 @@ bool HelloWorld::init() {
     if ( !Layer::init() ) {
         return false;
     }
-    
-    Size visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+	
+	waitingForResponse = false;
+	//Получаем полное имя файла для сохранения на устройстве
+    fileName = FileUtils::getInstance()->getWritablePath() + videoName;
+	
+	Size visibleSize = Director::getInstance()->getVisibleSize();
+	
+	//Создаём и размещаем плеер
+	videoPlayer = cocos2d::experimental::ui::VideoPlayer::create();
+	videoPlayer->setContentSize(visibleSize);
+	videoPlayer->setPosition(Vec2( visibleSize.width / 2, visibleSize.height * videoHeight / 2 ));
+	videoPlayer->setScale(videoHeight);
+	videoPlayer->setKeepAspectRatioEnabled(true);
+	this->addChild(videoPlayer);
 
-	auto menu = Menu::createWithItem(MenuItemLabel::create(Label::createWithSystemFont("Play video", "Arial", 24),
+	auto menu = Menu::createWithItem(MenuItemLabel::create(Label::createWithSystemFont(buttonText, "arial", 24),
 		[this](Ref *sender) {
-			HttpRequest* request = new HttpRequest();
-			request->setUrl("https://puzzle-english.com/api/test.php");
-			request->setRequestType(HttpRequest::Type::GET);
-			request->setResponseCallback(CC_CALLBACK_2(HelloWorld::apiRequestCallback, this));
-			HttpClient::getInstance()->send(request);
-			request->release();
+			//Если видео не играется и не скачивается в данный момент
+			if(!videoPlayer->isPlaying() && !waitingForResponse) {
+				//то, в зависимости от того, скачан ли файл
+				if(!FileUtils::getInstance()->isFileExist(fileName)) {
+					//либо начинаем скачивание
+					sendApiRequest();
+				} else {
+					//либо играем видео
+					playVideo();
+				}
+			}
 		}
 	));
-	menu->setPosition(visibleSize / 2);
-	this->addChild(menu);
+	//Размещаем кнопку на оставшемся от видео (1 - videoHeight) месте
+	menu->setPosition(Vec2( visibleSize.width / 2, visibleSize.height * (videoHeight + 1) / 2 )); // h + (1 - h) / 2
+	this->addChild(menu);	
     
     return true;
 }
 
+//Запрос к API
+void HelloWorld::sendApiRequest() {
+	HttpRequest* request = new HttpRequest();
+	request->setUrl(apiUrl);
+	request->setRequestType(HttpRequest::Type::GET);
+	request->setResponseCallback(CC_CALLBACK_2(HelloWorld::apiRequestCallback, this));
+	HttpClient::getInstance()->send(request);
+	waitingForResponse = true;
+	request->release();
+}
 
+//Запрос к URL видео
+void HelloWorld::sendDownloadRequest(string url) {
+	HttpRequest* request = new HttpRequest();
+	request->setUrl(url.c_str());
+	request->setRequestType(HttpRequest::Type::GET);
+	request->setResponseCallback(CC_CALLBACK_2(HelloWorld::videoDownloadCallback, this));
+	HttpClient::getInstance()->send(request);
+	waitingForResponse = true;
+	request->release();
+}
+
+//Получение URL из ответа сервера
+string HelloWorld::getUrlFromJson(string json) {
+	string ret;
+	rapidjson::Document d;
+	
+	d.Parse<0>(json.c_str());
+	if (!d.HasParseError() && d.IsObject() && d.HasMember(jsonKey)) {
+		ret = d[jsonKey].GetString();
+	} else {
+		MessageBox(apiErr, boxTitle);
+	}
+	return ret;
+}
+
+//Старт проигрывания видео
+void HelloWorld::playVideo() {
+	videoPlayer->setFileName(fileName);
+	videoPlayer->play();
+}
+
+//Ответ на запрос к API
 void HelloWorld::apiRequestCallback(HttpClient *sender, HttpResponse *response) {
-    if (response && response->getResponseCode() == 200 && response->getResponseData()) {
+	waitingForResponse = false;
+    if (response && response->isSucceed()) {
         vector<char> *data = response->getResponseData();
-        string ret(&(data->front()), data->size());
-        CCLOG("%s", ("Response message: " + ret).c_str());
-
-		rapidjson::Document d;
-		d.Parse<0>(ret.c_str());
-		if (d.HasParseError()) {
-			CCLOG("GetParseError %s\n",d.GetParseError());
+        string json(&(data->front()), data->size());
+		string url = getUrlFromJson(json);//Получаем URL видео
+		if(url.length() > 0) {
+			sendDownloadRequest(url);
 		}
-
-		string url;
-		if (d.IsObject() && d.HasMember("url")) {
-			url = d["url"].GetString();
-		}
-
-		HttpRequest* request = new HttpRequest();
-		request->setUrl(url.c_str());
-		request->setRequestType(HttpRequest::Type::GET);
-		request->setResponseCallback(CC_CALLBACK_2(HelloWorld::videoDownloadCallback, this));
-		HttpClient::getInstance()->send(request);
-		request->release();
     } else {
-       
+       MessageBox(netErr, boxTitle);
     }
 }
 
+//Ответ на запрос к URL видео
 void HelloWorld::videoDownloadCallback(HttpClient *sender, HttpResponse *response) {
-    if (response && response->getResponseCode() == 200 && response->getResponseData()) {
+	waitingForResponse = false;
+    if (response && response->isSucceed()) {
 		vector<char> *responseData = response->getResponseData();
-		string filename = FileUtils::getInstance()->getWritablePath() + "thevideo.mp4";
-		FILE *fp = fopen(filename.c_str(), "wb");
-		if (! fp) {
-			CCLOG("can not create file");
+		
+		//Сохраняем видео в файл на устройстве
+		FILE *fp = fopen(fileName.c_str(), "wb");
+		if (!fp) {
+			MessageBox(fileErr, boxTitle);
 			return;
 		}
 		fwrite(responseData->data(), 1, responseData->size(), fp);
-		fclose(fp);
-
-		Size visibleSize = Director::getInstance()->getVisibleSize();
-		auto videoPlayer = cocos2d::experimental::ui::VideoPlayer::create();
-		videoPlayer->setContentSize(visibleSize);
-		videoPlayer->setPosition(Vec2(visibleSize.width / 4, (visibleSize.height / 4 * 3)));
-		videoPlayer->setScale(0.5);
-		videoPlayer->setKeepAspectRatioEnabled(true);
-		this->addChild(videoPlayer);
-		videoPlayer->setFileName(filename);
-		if(FileUtils::getInstance()->isFileExist(filename)) videoPlayer->play();
+		fclose(fp); 
+		
+		//Проигрываем
+		playVideo();
     } else {
-       
+       MessageBox(netErr, boxTitle);
     }
 }
